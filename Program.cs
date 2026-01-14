@@ -18,18 +18,22 @@ class Program
     // Use 0x2D01 for accessory with ADB enabled, or 0x2D00 for accessory-only mode.
     private const int ACCESSORY_PID = 0x2104;
 
+    private const int ACCESSORY_REVISION = 0x0504;
+
     // The UsbDevice object that represents our connected Android device
-    public static UsbDevice MyUsbDevice;
+    public static IUsbDevice MyUsbDevice;
 
     static void Main(string[] args)
     {
         Console.WriteLine($"Searching for Android USB accessory (VID:{ACCESSORY_VID.ToString("X4")}, PID:{ACCESSORY_PID.ToString("X4")})...");
         
         // Finder object to locate our device
-        var finder = new UsbDeviceFinder(ACCESSORY_VID, ACCESSORY_PID);
+        // var finder = new UsbDeviceFinder(ACCESSORY_VID, ACCESSORY_PID, ACCESSORY_REVISION);
 
         UsbEndpointReader reader = null;
         UsbEndpointWriter writer = null;
+
+        var context = new UsbContext();
 
         try
         {
@@ -37,12 +41,16 @@ class Program
             while (true)
             {
                 // Open the device found by the finder
-                MyUsbDevice = UsbDevice.OpenUsbDevice(finder);
+                // MyUsbDevice = UsbDevice.OpenUsbDevice(finder);
+
+                MyUsbDevice = context.List().FirstOrDefault(d => d.ProductId == ACCESSORY_PID && d.VendorId == ACCESSORY_VID);
 
                 // If the device is open and ready
-                if (MyUsbDevice != null && MyUsbDevice.IsOpen)
+                // && MyUsbDevice.IsOpen
+                if (MyUsbDevice != null)
                 {
                     Console.WriteLine("\nDevice found! Opening connection...");
+                    MyUsbDevice.Open();
                     break; // Exit the loop
                 }
 
@@ -78,8 +86,8 @@ class Program
             string messageToSend = Console.ReadLine();
             byte[] dataToSend = Encoding.UTF8.GetBytes(messageToSend);
             
-            ErrorCode ec = writer.Write(dataToSend, 2000, out int bytesWritten);
-            if (ec != ErrorCode.None) throw new Exception("Write Error: " + ec);
+            Error ec = writer.Write(dataToSend, 2000, out int bytesWritten);
+            if (ec != Error.Success) throw new Exception("Write Error: " + ec);
             
             Console.WriteLine($"Sent {bytesWritten} bytes: {messageToSend}");
 
@@ -88,7 +96,7 @@ class Program
             byte[] readBuffer = new byte[512]; // Buffer to hold the received data
             
             ec = reader.Read(readBuffer, 2000, out int bytesRead);
-            if (ec != ErrorCode.None) throw new Exception("Read Error: " + ec);
+            if (ec != Error.Success) throw new Exception("Read Error: " + ec);
 
             if (bytesRead > 0)
             {
@@ -112,7 +120,7 @@ class Program
                 MyUsbDevice.Close();
             }
             // Free usb resources
-            UsbDevice.Exit(); 
+            // UsbDevice.Exit(); 
         }
 
         Console.WriteLine("\nPress any key to exit.");
